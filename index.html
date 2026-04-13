@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JP Practical Solver 내부 인터뷰 종합 분석</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --bg: #F8F8F6;
+    --card: #FFFFFF;
+    --text: #1A1A1A;
+    --text-muted: #666666;
+    --border: #E8E8E4;
+    --accent: #FF5533;
+    --p1: #7C3AED;
+    --p2: #0891B2;
+    --p3: #059669;
+    --target: #DC2626;
+    --goal: #1D4ED8;
+    --tag-bg: #F3F4F6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: #1A1A1A; color: #fff;
+    padding: 0 32px;
+    display: flex; align-items: center; gap: 0;
+    height: 52px;
+    overflow-x: auto;
+  }
+  .nav-title { font-size: 13px; font-weight: 600; color: var(--accent); white-space: nowrap; margin-right: 28px; }
+  nav a {
+    color: rgba(255,255,255,0.65); text-decoration: none;
+    font-size: 12px; white-space: nowrap; padding: 6px 14px;
+    border-radius: 4px; transition: all 0.15s;
+  }
+  nav a:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+  /* LAYOUT */
+  main { max-width: 960px; margin: 0 auto; padding: 80px 24px 80px; }
+
+  /* SECTION HEADERS */
+  .section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+    color: var(--accent); text-transform: uppercase; margin-bottom: 8px;
+  }
+  h1 { font-size: 26px; font-weight: 800; line-height: 1.3; margin-bottom: 6px; }
+  h2 { font-size: 20px; font-weight: 700; margin: 56px 0 20px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
+  h3 { font-size: 16px; font-weight: 700; margin: 32px 0 12px; }
+  h4 { font-size: 14px; font-weight: 700; margin: 20px 0 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* META */
+  .meta {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 20px;
+    margin: 20px 0 40px;
+    display: flex; flex-wrap: wrap; gap: 16px;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .meta span { display: flex; align-items: center; gap: 6px; }
+  .meta strong { color: var(--text); }
+
+  /* CARDS */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .card-grid { grid-template-columns: 1fr; } }
+
+  /* KEY FINDINGS */
+  .finding {
+    background: var(--card); border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 12px 12px 0; padding: 20px 24px; margin-bottom: 16px;
+  }
+  .finding-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+  .finding-body { font-size: 13px; color: #444; line-height: 1.8; }
+
+  /* QUOTES */
+  blockquote {
+    background: #F9F9F7; border-left: 3px solid #D0D0C8;
+    padding: 12px 16px; margin: 12px 0;
+    border-radius: 0 8px 8px 0; font-size: 13px;
+    color: #555; font-style: italic;
+  }
+  blockquote strong { color: var(--text); font-style: normal; }
+
+  /* TABLES */
+  .table-wrap { overflow-x: auto; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    background: #F3F3F0; font-weight: 700; text-align: left;
+    padding: 10px 14px; border: 1px solid var(--border);
+    font-size: 12px;
+  }
+  td { padding: 10px 14px; border: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: #FAFAF8; }
+
+  /* PRIORITY BADGES */
+  .pri { display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    font-size: 11px; font-weight: 800; color: #fff; }
+  .pri-1 { background: var(--accent); }
+  .pri-2 { background: #F59E0B; }
+  .pri-3 { background: #10B981; }
+  .pri-4 { background: #6B7280; }
+
+  /* HURDLE HEATMAP */
+  .hurdle-grid { display: grid; grid-template-columns: 180px 1fr 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .hg-head { background: #F3F3F0; font-weight: 700; font-size: 12px; padding: 10px 12px; }
+  .hg-cell { background: #fff; padding: 10px 12px; font-size: 12px; text-align: center; display: flex; align-items: center; justify-content: center; }
+  .hg-full { background: #FEE2E2; color: #991B1B; font-weight: 700; }
+  .hg-part { background: #FEF3C7; color: #92400E; }
+  .hg-none { background: #F3F4F6; color: #9CA3AF; }
+
+  /* PERSONA CARDS */
+  .persona-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 24px 0; }
+  @media (max-width: 700px) { .persona-cards { grid-template-columns: 1fr; } }
+  .persona-card { background: var(--card); border: 2px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .persona-card-head { padding: 20px; color: #fff; }
+  .persona-card-head .num { font-size: 11px; font-weight: 700; opacity: 0.8; letter-spacing: 0.1em; margin-bottom: 6px; }
+  .persona-card-head .def { font-size: 13px; font-weight: 700; line-height: 1.5; }
+  .persona-card-body { padding: 18px 20px; }
+  .persona-card-body p { font-size: 12px; color: #555; margin-bottom: 8px; }
+  .persona-card-body .tag { display: inline-block; background: var(--tag-bg); border-radius: 4px; font-size: 11px; padding: 2px 8px; margin: 2px 2px 2px 0; color: #444; }
+  .p1-head { background: var(--p1); }
+  .p2-head { background: var(--p2); }
+  .p3-head { background: var(--p3); }
+  .persona-card.p1 { border-color: var(--p1); }
+  .persona-card.p2 { border-color: var(--p2); }
+  .persona-card.p3 { border-color: var(--p3); }
+  .interviewee { font-size: 11px; color: var(--text-muted); margin-top: 12px; display: flex; align-items: center; gap: 6px; }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+
+  /* SPECTRUM BAR */
+  .spectrum {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; margin: 20px 0;
+  }
+  .spectrum-title { font-size: 14px; font-weight: 700; margin-bottom: 20px; }
+  .spectrum-row { display: grid; grid-template-columns: 130px 1fr 1fr; gap: 1px; margin-bottom: 1px; }
+  .spectrum-label { font-size: 11px; font-weight: 700; color: var(--text-muted); padding: 8px 10px; background: #F8F8F6; display: flex; align-items: center; }
+  .spectrum-cell { font-size: 11px; padding: 8px 12px; background: #fff; }
+  .spectrum-cell.kamase { border-top: 3px solid #0891B2; }
+  .spectrum-cell.inoue { border-top: 3px solid #0E7490; }
+  .spectrum-cell.munesige { border-top: 3px solid #DC2626; }
+  .spectrum-name { font-weight: 700; font-size: 12px; padding: 8px 12px; text-align: center; }
+
+  /* STRATEGY FLOW */
+  .flow {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px; margin: 24px 0;
+  }
+  .flow-row { display: flex; gap: 12px; align-items: stretch; margin-bottom: 16px; flex-wrap: wrap; }
+  .flow-box {
+    flex: 1; min-width: 160px; border-radius: 12px; padding: 16px;
+    text-align: center;
+  }
+  .flow-box.target { background: #FEF2F2; border: 2px solid #FCA5A5; }
+  .flow-box.role { background: #EFF6FF; border: 2px solid #93C5FD; }
+  .flow-box.goal { background: #F0FDF4; border: 2px solid #86EFAC; }
+  .flow-box .box-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .flow-box.target .box-label { color: var(--target); }
+  .flow-box.role .box-label { color: var(--goal); }
+  .flow-box.goal .box-label { color: #059669; }
+  .flow-box .box-name { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+  .flow-box .box-desc { font-size: 11px; color: #666; line-height: 1.6; }
+  .flow-arrow { display: flex; align-items: center; justify-content: center; font-size: 24px; color: #CBD5E1; flex-shrink: 0; padding: 0 4px; }
+
+  .steps { margin: 16px 0; }
+  .step { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+  .step-num { width: 24px; height: 24px; background: var(--goal); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; margin-top: 1px; }
+  .step-text { font-size: 13px; color: #444; line-height: 1.6; }
+
+  /* GOAL TABLE */
+  .goal-table { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .gt-row { display: grid; grid-template-columns: 160px 1fr 1fr; border-bottom: 1px solid var(--border); }
+  .gt-row:last-child { border-bottom: none; }
+  .gt-head { background: #F3F3F0; }
+  .gt-cell { padding: 12px 16px; font-size: 12px; border-right: 1px solid var(--border); }
+  .gt-cell:last-child { border-right: none; }
+  .gt-head .gt-cell { font-weight: 700; font-size: 11px; }
+  .persona-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+
+  /* LIFESTYLE TABLE */
+  .ls-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden; margin-bottom: 10px;
+    display: grid; grid-template-columns: 160px 1fr 1fr 1fr;
+  }
+  .ls-name { padding: 16px; background: #F8F8F6; display: flex; flex-direction: column; justify-content: center; border-right: 1px solid var(--border); }
+  .ls-name strong { font-size: 13px; }
+  .ls-name span { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .ls-col { padding: 16px; border-right: 1px solid var(--border); font-size: 12px; line-height: 1.7; }
+  .ls-col:last-child { border-right: none; }
+  .ls-col-title { font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+  @media (max-width: 700px) {
+    .ls-card { grid-template-columns: 1fr; }
+    .spectrum-row { grid-template-columns: 1fr; }
+    .gt-row { grid-template-columns: 1fr; }
+    .flow-row { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); }
+  }
+
+  /* CHART CONTAINERS */
+  .chart-wrap { position: relative; height: 280px; margin: 20px 0; }
+
+  /* DIVIDER */
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  /* TAG */
+  .tag-group { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag { display: inline-block; background: var(--tag-bg); border-radius: 6px; font-size: 11px; padding: 3px 10px; color: #555; }
+  .tag.accent { background: #FFF0EC; color: var(--accent); }
+  .tag.p1c { background: #EDE9FE; color: var(--p1); }
+  .tag.p2c { background: #E0F2FE; color: var(--p2); }
+  .tag.p3c { background: #DCFCE7; color: var(--p3); }
+
+  /* TARGET HIGHLIGHT */
+  .highlight-box {
+    border-radius: 12px; padding: 20px 24px; margin: 16px 0;
+  }
+  .highlight-box.red { background: #FEF2F2; border: 1px solid #FECACA; }
+  .highlight-box.blue { background: #EFF6FF; border: 1px solid #BFDBFE; }
+
+  /* PARTICIPANT PROFILE */
+  .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  @media (max-width: 600px) { .profile-grid { grid-template-columns: 1fr; } }
+  .profile-item { font-size: 12px; }
+  .profile-item .key { color: var(--text-muted); font-size: 11px; margin-bottom: 2px; }
+  .profile-item .val { font-weight: 600; }
+
+  /* PALETTE DOTS */
+  .palette { display: flex; gap: 6px; margin-top: 6px; }
+  .dot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
+
+  /* SCROLL TO TOP */
+  .scroll-top { position: fixed; bottom: 24px; right: 24px; background: #1A1A1A; color: #fff; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; }
+  .scroll-top:hover { opacity: 1; }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-title">JP Practical Solver</span>
+  <a href="#summary">요약</a>
+  <a href="#action">액션</a>
+  <a href="#hypothesis">가설 분석</a>
+  <a href="#participants">참여자</a>
+  <a href="#persona">페르소나</a>
+  <a href="#strategy">전략 타겟</a>
+  <a href="#lifestyle">라이프스타일</a>
+</nav>
+
+<main>
+
+  <!-- HEADER -->
+  <div class="section-label">User Interview Report</div>
+  <h1>JP Practical Solver<br>내부 인터뷰 종합 분석</h1>
+  <div class="meta">
+    <span>📋 <strong>프로젝트</strong> [JP] Practical solver는 어떤 고객인가?</span>
+    <span>🔬 <strong>방법론</strong> IDI (In-depth Interview)</span>
+    <span>👤 <strong>인터뷰어</strong> Helena Kim / 통역 Pecan Kim</span>
+    <span>📅 <strong>일시</strong> 2026.04.07 – 09</span>
+    <span>👥 <strong>참여자</strong> 5명 (Group 2 × 3 / Group 4 × 2)</span>
+  </div>
+
+  <!-- PARTICIPANT OVERVIEW -->
+  <div class="card-grid" style="margin-bottom:40px;">
+    <div class="card" style="border-top:3px solid #DC2626;">
+      <div style="font-size:11px;font-weight:700;color:#DC2626;letter-spacing:.08em;margin-bottom:8px;">GROUP 2 — 예비 PS</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;">宗重早紀 (무네시게 사키)</div>
+      <div style="font-size:11px;color:#888;">1DK · 도쿄 · 1인 · 미구매</div>
+      <div style="font-size:13px;font-weight:700;margin:10px 0 4px;">釜瀬直登 (카마세 나오토)</div>
+      <div style="font-size:11px;color:#888;">1LDK · 세타가야 · 1인 · 미구매</div>
+      <div style="font-size:13px;font-weight:700;margin:10px 0 4px;">井上亜沙美 (이노우에 아사미)</div>
+      <div style="font-size:11px;color:#888;">1LDK · 신주쿠 · 2인 · 미구매</div>
+    </div>
+    <div class="card" style="border-top:3px solid #059669;">
+      <div style="font-size:11px;font-weight:700;color:#059669;letter-spacing:.08em;margin-bottom:8px;">GROUP 4 — PS (구매자)</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;">上田智江 (우에다 토모에)</div>
+      <div style="font-size:11px;color:#888;">1LDK · 도쿄 · 2인 · 북타워 구매</div>
+      <div style="font-size:13px;font-weight:700;margin:10px 0 4px;">加藤祐也 (카토 유야)</div>
+      <div style="font-size:11px;color:#888;">1K · 도쿄 · 2인 · 러그 구매</div>
+    </div>
+    <div class="card" style="border-top:3px solid #F59E0B;">
+      <div style="font-size:11px;font-weight:700;color:#F59E0B;letter-spacing:.08em;margin-bottom:8px;">공통 특성</div>
+      <div class="tag-group">
+        <span class="tag">1K–1LDK 임대</span>
+        <span class="tag">30대 전후</span>
+        <span class="tag">도쿄권</span>
+        <span class="tag">인스타 탐색</span>
+        <span class="tag">통일감 추구</span>
+        <span class="tag">생활감 없는 방</span>
+        <span class="tag">완성 레퍼런스 니즈</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: 종합 서머리 -->
+  <h2 id="summary">1. 핵심 발견</h2>
+
+  <div class="finding">
+    <div class="finding-title">🔴 허들의 본질은 '구매 못 함'이 아니라 '내 방에 구현 가능한지 모름'이다</div>
+    <div class="finding-body">예비 PS 3명 모두 오하우스를 알고, 탐색하고, 사고 싶은 아이템도 있다. 그러나 공통적으로 "이게 내 방에 맞을지 모른다"는 불확실성 앞에서 멈춘다. 해외 사이트 신뢰 부족, 이사 예정, 예산 부족은 이 <strong>공간 적합성 불안</strong>을 '안 살 이유'로 정당화하는 레이어다.</div>
+    <blockquote><strong>宗重早紀 (무네시게 사키):</strong> "뭔가 하고 싶다는 생각을 해왔지만 딱히 할 수 없고 답답한 마음만 계속 이어지고 있어요"</blockquote>
+    <blockquote><strong>釜瀬直登 (카마세 나오토):</strong> "카트에 넣기는 했으나 이불이 낄 것 같아서 구매하지 못하고 있는 상태입니다"</blockquote>
+  </div>
+
+  <div class="finding">
+    <div class="finding-title">🟢 PS로 전환된 결정적 계기는 '완성된 방 레퍼런스'였다</div>
+    <div class="finding-body">上田智江 (우에다 토모에)와 加藤祐也 (카토 유야) 모두, 자신의 취향과 딱 맞는 완성된 공간 콘텐츠를 통해 "이걸 따라하면 되겠다"는 확신이 생긴 뒤 구매로 이어졌다. 브랜드 신뢰보다 <strong>"이렇게 하면 내 방도 이렇게 될 수 있다"는 공간 완성 가능성</strong>이 허들을 넘게 했다.</div>
+    <blockquote><strong>上田智江 (우에다 토모에):</strong> "마네킹 입은 거 다 주세요처럼, 기사를 따라하면 기본은 간다는 느낌이 있어요"</blockquote>
+    <blockquote><strong>加藤祐也 (카토 유야):</strong> "요시라이프님이 딱 제 마음속에 스트라이크를 때린 취향의 방을 올리셨거든요. 그분이 쓰는 제품이니까 구매하게 됐습니다"</blockquote>
+  </div>
+
+
+  <!-- SECTION: ACTION ITEMS -->
+  <h2 id="action">2. 액션 아이템</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:60px;">우선순위</th>
+          <th>액션</th>
+          <th>근거 (인터뷰)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="text-align:center;"><span class="pri pri-1">1</span></td>
+          <td><strong>"내 방과 비슷한 구조·사이즈의 완성된 레퍼런스"를 예비 PS에게 먼저 제시</strong><br><span style="font-size:11px;color:#888;">공간 적합성 불안 해소</span></td>
+          <td style="font-size:12px;">宗重早紀 (무네시게 사키): "창문·에어컨 위치가 같은 방을 찾아야 따라할 수 있다"<br>釜瀬直登 (카마세 나오토): "자로 재서 계산했는데도 맞을지 불안해요"</td>
+        </tr>
+        <tr>
+          <td style="text-align:center;"><span class="pri pri-2">2</span></td>
+          <td><strong>집들이 기사의 아이템 태그를 구매 흐름 핵심 진입점으로 강화</strong><br><span style="font-size:11px;color:#888;">PS가 전환된 경로 그대로</span></td>
+          <td style="font-size:12px;">加藤祐也 (카토 유야): "룸투어 기사에서 아이템 태그 클릭해서 구매했어요. 그게 제일 자연스러웠어요"</td>
+        </tr>
+        <tr>
+          <td style="text-align:center;"><span class="pri pri-3">3</span></td>
+          <td><strong>소품 단계 진입 경험 설계</strong><br><span style="font-size:11px;color:#888;">작은 성공 → 대형 가구 단계적 전환</span></td>
+          <td style="font-size:12px;">上田智江 (우에다 토모에): "처음엔 쿠션·화병·티슈케이스처럼 작은 것부터 시도했어요. 만족스러워서 이제 책장도 사려고 해요"</td>
+        </tr>
+        <tr>
+          <td style="text-align:center;"><span class="pri pri-4">4</span></td>
+          <td><strong>AR 배치 시뮬레이션 신뢰도 개선</strong><br><span style="font-size:11px;color:#888;">현재 실물과 달라 불신</span></td>
+          <td style="font-size:12px;">釜瀬直登 (카마세 나오토): "3D AR 써봤는데 실물이랑 차이가 있어서 지금은 자로 직접 재고 있어요"</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr>
+
+  <!-- SECTION 3: 가설별 분석 -->
+  <h2 id="hypothesis">3. 가설별 결과 분석</h2>
+
+  <!-- 2-1 -->
+  <h3>3-1. 예비 PS vs PS — 결정적 차이</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>차이 포인트</th><th>예비 PS (宗重早紀 무네시게 사키·釜瀬直登 카마세 나오토·井上亜沙美 이노우에 아사미)</th><th>PS (上田智江 우에다 토모에·加藤祐也 카토 유야)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>취향 명확도</td><td>방향성은 있지만 팔레트 불명확</td><td>컬러 팔레트·스타일 명확히 정의됨</td></tr>
+        <tr><td>레퍼런스 실현 가능성</td><td>"예쁜데 내 방에서 재현할 수 있을지 모름"</td><td>"이렇게 하면 된다"는 확신이 있음</td></tr>
+        <tr><td>구매 여정 경험</td><td>실패 경험 → 신중, 또는 아직 미시도</td><td>소품부터 시도 → 성공 → 확장 중</td></tr>
+        <tr><td>오하우스 역할</td><td>탐색·영감 플랫폼</td><td>구매 기본값 플랫폼</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 2-2 허들 -->
+  <h3>3-2. 예비 PS의 심리적 허들 비교</h3>
+  <div class="hurdle-grid" style="margin:16px 0;">
+    <div class="hg-head" style="border-bottom:1px solid var(--border);">허들</div>
+    <div class="hg-head" style="text-align:center;border-bottom:1px solid var(--border);">宗重早紀<br><span style="font-size:10px;font-weight:400;">(무네시게 사키)</span></div>
+    <div class="hg-head" style="text-align:center;border-bottom:1px solid var(--border);">釜瀬直登<br><span style="font-size:10px;font-weight:400;">(카마세 나오토)</span></div>
+    <div class="hg-head" style="text-align:center;border-bottom:1px solid var(--border);">井上亜沙美<br><span style="font-size:10px;font-weight:400;">(이노우에 아사미)</span></div>
+
+    <div class="hg-cell hg-head">공간 적합성 불안</div>
+    <div class="hg-cell hg-full">✅ 큰 가구 처분 어려움</div>
+    <div class="hg-cell hg-full">✅ 사이즈 안 맞을까봐</div>
+    <div class="hg-cell hg-full">✅ 실물 확인 불가</div>
+
+    <div class="hg-cell hg-head">해외 사이트 불안</div>
+    <div class="hg-cell hg-full">✅ 카드·품질 불안</div>
+    <div class="hg-cell hg-part">△ 파손 걱정, 감수</div>
+    <div class="hg-cell hg-full">✅ A/S·배송 기간</div>
+
+    <div class="hg-cell hg-head">이사 예정 미룸</div>
+    <div class="hg-cell hg-full">✅ "다음 이사 때" 반복</div>
+    <div class="hg-cell hg-part">△ 막 이사해서 천천히</div>
+    <div class="hg-cell hg-none">—</div>
+
+    <div class="hg-cell hg-head">코디 실패 경험</div>
+    <div class="hg-cell hg-full">✅ 수납장 실패</div>
+    <div class="hg-cell hg-full">✅ 러그 실패</div>
+    <div class="hg-cell hg-full">✅ 데님 소파 실패</div>
+
+    <div class="hg-cell hg-head">예산 부족</div>
+    <div class="hg-cell hg-full">✅ 주얼리 학교 비용</div>
+    <div class="hg-cell hg-none">—</div>
+    <div class="hg-cell hg-none">—</div>
+  </div>
+  <div style="display:flex;gap:12px;font-size:11px;color:#888;margin-bottom:20px;">
+    <span style="display:flex;align-items:center;gap:4px;"><span style="background:#FEE2E2;width:12px;height:12px;border-radius:2px;display:inline-block;"></span>강한 허들</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="background:#FEF3C7;width:12px;height:12px;border-radius:2px;display:inline-block;"></span>부분적</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="background:#F3F4F6;width:12px;height:12px;border-radius:2px;display:inline-block;"></span>해당없음</span>
+  </div>
+
+
+  <!-- 2-3 PS 긍정 가치 -->
+  <h3>3-3. PS가 오하우스에서 경험한 긍정적 가치</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>긍정 경험</th><th>上田智江 (우에다 토모에)</th><th>加藤祐也 (카토 유야)</th></tr></thead>
+      <tbody>
+        <tr><td>집들이 기사·룸투어</td><td>✅ "기사를 따라하면 방이 완성돼요"</td><td>✅ "기사에서 아이템 태그 보고 구매해요"</td></tr>
+        <tr><td>사진-실물 차이 없음</td><td>—</td><td>✅ "사진과 차이가 거의 없었어요"</td></tr>
+        <tr><td>한국 제품 무료배송</td><td>✅ "바이마에서 수수료 내던 것과 달라요"</td><td>✅ "바이마보다 직접적이라 더 싸요"</td></tr>
+        <tr><td>오하우스 단독 상품</td><td>✅ "다른 플랫폼에서 못 찾는 제품이 있어요"</td><td>—</td></tr>
+        <tr><td>풍부한 리뷰</td><td>✅ "리뷰가 많고 방 배치 사진까지 있어요"</td><td>✅ "유저 사진이 신뢰를 높여줘요"</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 2-4 전환 맥락 -->
+  <h3>3-4. 구매 전환 맥락 비교</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>전환 맥락</th><th>上田智江 (우에다 토모에)</th><th>加藤祐也 (카토 유야)</th></tr></thead>
+      <tbody>
+        <tr><td>완성된 레퍼런스 발견</td><td>✅ 집들이 기사에서 "이렇게 하면 된다"</td><td>✅ 인플루언서 게시물에서 "딱 내 취향"</td></tr>
+        <tr><td>소품→대형 가구 단계</td><td>✅ 쿠션부터 → 성공 → 북타워 확장</td><td>—</td></tr>
+        <tr><td>세일·단독 상품 타이밍</td><td>✅ "마침 반값 세일이라"</td><td>—</td></tr>
+        <tr><td>인플루언서 신뢰 이전</td><td>—</td><td>✅ "요시라이프님이 쓰는 거라 맞겠다"</td></tr>
+        <tr><td>직관 확신 ("딱 느낌")</td><td>—</td><td>✅ "직관적으로 딱 왔을 때 사야 해요"</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr>
+
+  <!-- SECTION: 참여자별 인사이트 -->
+  <h2 id="participants">4. 참여자별 인사이트</h2>
+
+  <!-- P1 上田智江 -->
+  <div class="card" style="border-left:4px solid var(--p1); margin-bottom:20px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <div class="avatar" style="background:var(--p1);">P1</div>
+      <div>
+        <div style="font-size:15px;font-weight:800;">上田智江 (우에다 토모에)</div>
+        <div style="font-size:11px;color:#888;">Group 4 · 오하우스 구매자 · 2026.04.07</div>
+      </div>
+      <div class="tag p1c" style="margin-left:auto;">페르소나 1</div>
+    </div>
+    <div class="profile-grid">
+      <div class="profile-item"><div class="key">연령/성별</div><div class="val">만 32세, 여성</div></div>
+      <div class="profile-item"><div class="key">직업</div><div class="val">화장품회사 → 보육사 → 출산휴가</div></div>
+      <div class="profile-item"><div class="key">거주</div><div class="val">도쿄, 1LDK 40㎡ 신축</div></div>
+      <div class="profile-item"><div class="key">오하우스 구매</div><div class="val">북타워(책장) — 세일 반값</div></div>
+    </div>
+    <div style="margin:12px 0 6px;font-size:11px;font-weight:700;color:#888;">컬러 팔레트</div>
+    <div class="palette">
+      <div class="dot" style="background:#FFFFFF;border:1px solid #ddd;" title="흰색"></div>
+      <div class="dot" style="background:#1A1A1A;" title="검정"></div>
+      <div class="dot" style="background:#FFF176;" title="레몬 옐로우"></div>
+    </div>
+    <blockquote style="margin-top:12px;">"노란색이랑 싸움 났네. 안 사야겠다." — 컬러가 기존 팔레트와 충돌할 때 구매 포기하는 방식</blockquote>
+    <div style="margin-top:12px;font-size:12px;color:#555;">독서 연 100권 보유 → 이사 후 <strong>검정 책장 첫 구매 예정</strong> (현재 오하우스 판매 중단 → 입점 신청까지 완료)</div>
+  </div>
+
+  <!-- P2 宗重早紀 -->
+  <div class="card" style="border-left:4px solid var(--target); margin-bottom:20px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <div class="avatar" style="background:var(--target);">P2</div>
+      <div>
+        <div style="font-size:15px;font-weight:800;">宗重早紀 (무네시게 사키)</div>
+        <div style="font-size:11px;color:#888;">Group 2 · 오하우스 미구매 · 2026.04.08</div>
+      </div>
+      <div class="tag" style="margin-left:auto;background:#FEE2E2;color:#991B1B;">지금 타겟</div>
+    </div>
+    <div class="profile-grid">
+      <div class="profile-item"><div class="key">직업</div><div class="val">회사원 + 주얼리 제작 학교</div></div>
+      <div class="profile-item"><div class="key">거주</div><div class="val">도쿄, 1DK 60년된 아파트 (1인)</div></div>
+      <div class="profile-item"><div class="key">목표 스타일</div><div class="val">미드센추리 모던</div></div>
+      <div class="profile-item"><div class="key">현재 방</div><div class="val">"팝적인 느낌이 되어버렸어요"</div></div>
+    </div>
+    <div style="margin:12px 0 6px;font-size:11px;font-weight:700;color:#888;">독특한 표현</div>
+    <div class="tag-group">
+      <span class="tag accent">"공공 시설 같은 느낌" (니토리)</span>
+      <span class="tag accent">"팝적인 느낌이 되어버렸어요"</span>
+      <span class="tag accent">"방에 맞지 않는다는 느낌이 계속"</span>
+      <span class="tag accent">"뭔가 하고 싶지만 할 수 없고 답답"</span>
+      <span class="tag accent">"같은 가구를 구할 수 있으면 따라 할 수 있다"</span>
+      <span class="tag accent">"수납장 샀는데 물건이 더 늘었어요"</span>
+      <span class="tag accent">"미드센추리 스타일로 꾸미고 싶어요"</span>
+    </div>
+    <blockquote style="margin-top:12px;">"뭔가 하고 싶다는 생각을 해왔지만 딱히 할 수 없고 답답한 마음만 계속 이어지고 있어요"</blockquote>
+  </div>
+
+  <!-- P3 釜瀬直登 -->
+  <div class="card" style="border-left:4px solid var(--p1); margin-bottom:20px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <div class="avatar" style="background:var(--p1);">P3</div>
+      <div>
+        <div style="font-size:15px;font-weight:800;">釜瀬直登 (카마세 나오토)</div>
+        <div style="font-size:11px;color:#888;">Group 2 · 오하우스 미구매 · 2026.04.09</div>
+      </div>
+      <div class="tag p1c" style="margin-left:auto;">페르소나 1</div>
+    </div>
+    <div class="profile-grid">
+      <div class="profile-item"><div class="key">연령/직업</div><div class="val">만 32세, 회사원 (작년 승진)</div></div>
+      <div class="profile-item"><div class="key">거주</div><div class="val">세타가야구 1LDK (1개월 전 이사)</div></div>
+      <div class="profile-item"><div class="key">취향 키워드</div><div class="val">생활감 없는 모델룸</div></div>
+      <div class="profile-item"><div class="key">방향성</div><div class="val">거실=북유럽 / 침실=한국식</div></div>
+    </div>
+    <blockquote style="margin-top:12px;">"어떤 게시물을 봤을 때 그 아이템이 어느 브랜드인지 조사하고, 내 방에 어디에 놓을 수 있을지 여러 상상을 펼치는 것이 지금의 즐거움"</blockquote>
+  </div>
+
+  <!-- P4 井上亜沙美 -->
+  <div class="card" style="border-left:4px solid #0E7490; margin-bottom:20px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <div class="avatar" style="background:#0E7490;">P4</div>
+      <div>
+        <div style="font-size:15px;font-weight:800;">井上亜沙美 (이노우에 아사미)</div>
+        <div style="font-size:11px;color:#888;">Group 2 · 오하우스 미구매 · 2026.04.09</div>
+      </div>
+      <div class="tag p2c" style="margin-left:auto;">페르소나 2</div>
+    </div>
+    <div class="profile-grid">
+      <div class="profile-item"><div class="key">직업</div><div class="val">회사원 (재택근무)</div></div>
+      <div class="profile-item"><div class="key">거주</div><div class="val">1LDK 42㎡ (남편과 2인)</div></div>
+      <div class="profile-item"><div class="key">동경 브랜드</div><div class="val">USM 할러 모듈</div></div>
+      <div class="profile-item"><div class="key">팔레트</div><div class="val">흰색 + 검은색 + 실버(스틸)</div></div>
+    </div>
+    <blockquote style="margin-top:12px;">"방에 무엇이 있으면 좋겠다는 이미지는 있어요. 근데 실제로 어디서 사야 하는지, 제 방 치수에 맞는 게 있는지 — 그걸 찾는 게 너무 힘들어서 결국 1년 가까이 그냥 두고 있었어요."</blockquote>
+  </div>
+
+  <!-- P5 加藤祐也 -->
+  <div class="card" style="border-left:4px solid var(--p3); margin-bottom:20px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <div class="avatar" style="background:var(--p3);">P5</div>
+      <div>
+        <div style="font-size:15px;font-weight:800;">加藤祐也 (카토 유야)</div>
+        <div style="font-size:11px;color:#888;">Group 4 · 오하우스 구매자 · 2026.04.09</div>
+      </div>
+      <div class="tag p3c" style="margin-left:auto;">페르소나 3</div>
+    </div>
+    <div class="profile-grid">
+      <div class="profile-item"><div class="key">취미</div><div class="val">DJ, 운동, 독서</div></div>
+      <div class="profile-item"><div class="key">거주</div><div class="val">1K 정사각형 (2인 자취)</div></div>
+      <div class="profile-item"><div class="key">취향 키워드</div><div class="val">무기질 + 유기적 믹스</div></div>
+      <div class="profile-item"><div class="key">오하우스 구매</div><div class="val">불규칙 원형 러그</div></div>
+    </div>
+    <blockquote style="margin-top:12px;">"클럽 갔다가 공간이 너무 좋아서 — 조명이나 소재가 — 그냥 머릿속에 번개가 쳤어요. 그때부터 내가 원하는 게 뭔지 알아버린 느낌? 그 이후로는 보면 바로 알아요, 이게 내 거인지 아닌지."</blockquote>
+  </div>
+
+  <hr>
+
+  <!-- SECTION: 페르소나 -->
+  <h2 id="persona">5. 페르소나</h2>
+
+  <div class="persona-cards">
+    <!-- P1 -->
+    <div class="persona-card p1">
+      <div class="persona-card-head p1-head">
+        <div class="num">PERSONA 01</div>
+        <div class="def">콘텐츠가 취향의 언어를 가르쳐준 사람</div>
+      </div>
+      <div class="persona-card-body">
+        <p><strong>계기</strong> 삶의 큰 변화 — 육아휴직으로 집에 있는 시간이 길어지거나(上田), 승진·이사로 새 공간이 생기거나(釜瀬). 어떤 식으로든 집에 제대로 있을 이유가 생겼다.</p>
+        <p><strong>취향 발견</strong>
+          <br>· 上田: 콘텐츠에서 고정관념이 깨지는 순간 → 팔레트 언어 획득 → 소품부터 시도
+          <br>· 釜瀬: 인스타·X 적극 탐색, 브랜드·치수 역추적 → 방향성(거실=북유럽, 침실=한국식) 설정. 탐색 자체를 즐김
+        </p>
+        <p><strong>구매 방식</strong>
+          <br>· 上田: 소품 성공 경험 → 점점 큰 가구로 확장. 집들이 기사가 직접 트리거
+          <br>· 釜瀬: 다른 채널에서 이미 구매 중. 오하우스는 배치 레퍼런스 없이 치수만으로 결정해야 해서 확신 부족
+        </p>
+        <div class="tag-group">
+          <span class="tag">삶의 큰 변화</span><span class="tag">콘텐츠 언어</span><span class="tag">팔레트 기준</span><span class="tag">자기 취향</span>
+        </div>
+        <div class="interviewee">
+          <div class="avatar" style="background:var(--p1);">P1</div>
+          上田智江 (우에다 토모에)
+          <div class="avatar" style="background:var(--p2);margin-top:8px;">P3</div>
+          釜瀬直登 (카마세 나오토)
+          <div style="font-size:11px;color:#888;margin-top:4px;">※ 오하우스 미구매 이유: 제품이 내 방 치수에 맞는지 확신 부족</div>
+        </div>
+      </div>
+    </div>
+    <!-- P2 -->
+    <div class="persona-card p2">
+      <div class="persona-card-head p2-head">
+        <div class="num">PERSONA 02</div>
+        <div class="def">원하는 방 이미지는 있고 탐색도 충분히 했는데, 구매 실행이 계속 미뤄지는 사람</div>
+      </div>
+      <div class="persona-card-body">
+        <p><strong>계기</strong> 이사·결혼 등 외부 이벤트. "이참에 제대로 바꾸고 싶다".</p>
+        <p><strong>취향 발견</strong> USM 할러를 동경 레퍼런스로, 흰색·검정·실버 팔레트가 이미 확고. 취향을 찾는 게 아니라 그 취향에 맞는 현실적 대안을 찾는 탐색.</p>
+        <p><strong>구매 방식</strong> 느리고 신중. 1년+ 탐색 끝에 일본 대안으로 구매.</p>
+        <div class="tag-group">
+          <span class="tag">외부 이벤트</span><span class="tag">동경 레퍼런스</span><span class="tag">현실 번역</span>
+        </div>
+        <div class="interviewee">
+          <div class="avatar" style="background:#0E7490;">P4</div>
+          井上亜沙美 (이노우에 아사미)
+        </div>
+      </div>
+    </div>
+    <!-- P3 -->
+    <div class="persona-card p3">
+      <div class="persona-card-head p3-head">
+        <div class="num">PERSONA 03</div>
+        <div class="def">한 순간의 강렬한 감각이 취향을 확정지은 사람</div>
+      </div>
+      <div class="persona-card-body">
+        <p><strong>계기</strong> 삶의 이벤트 아님. 특정 공간 경험에서 "머릿속 번개".</p>
+        <p><strong>취향 발견</strong> 탐색이 아니라 역추적. 취향 먼저 → 아이템 찾기.</p>
+        <p><strong>구매 방식</strong> 직관 오면 즉시. 확신 없으면 절대 안 삼.</p>
+        <div class="tag-group">
+          <span class="tag">감각적 계기</span><span class="tag">직관</span><span class="tag">역추적</span><span class="tag">즉시 구매</span>
+        </div>
+        <div class="interviewee">
+          <div class="avatar" style="background:var(--p3);">P5</div>
+          加藤祐也 (카토 유야)
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 페르소나 비교 레이더 차트 -->
+  <div class="card">
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px;">페르소나 비교 — 구매 속도 × 취향 확신 × 탐색 깊이</div>
+    <div style="font-size:12px;color:#888;margin-bottom:16px;">5점 만점 기준 (인터뷰 데이터 기반 정성 평가)</div>
+    <div class="chart-wrap">
+      <canvas id="radarChart"></canvas>
+    </div>
+  </div>
+
+  <!-- 페르소나 비교 표 -->
+  <h3>페르소나 비교 요약</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th><span style="color:var(--p1);">●</span> 페르소나 1</th>
+          <th><span style="color:#0E7490;">●</span> 페르소나 2</th>
+          <th><span style="color:var(--p3);">●</span> 페르소나 3</th>
+          <th style="background:#FEF3C7;"><span style="color:var(--target);">★</span> 전략적 타겟</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>계기</td><td>삶의 큰 변화 (육아휴직·이사·승진)</td><td>외부 이벤트 (이사·결혼)</td><td>감각적 경험 (공간 충격)</td><td style="background:#FFFBEB;">이사 예정. 유행을 따라가지만<br>자기 취향이 뭔지 모름</td></tr>
+        <tr><td>취향 발견 방식</td><td>콘텐츠가 취향 언어를 줌</td><td>동경 레퍼런스가 이미 있음.<br>현실 번역이 과제</td><td>직관으로 한 번에 확정</td><td style="background:#FFFBEB;">유행·인플루언서를 따라가지만<br>재현하면 어색함. 취향 언어 자체가 없음</td></tr>
+        <tr><td>유행 vs. 자기 취향</td><td>콘텐츠로 취향 언어 획득 →<br>자기 기준 형성 중</td><td>자기 취향 기준 확고<br>(흰색·검정·실버 팔레트 고수)</td><td>유행 무관. 직관이 전부</td><td style="background:#FFFBEB;">유행 추구 → 재현 실패<br>→ "내가 뭘 좋아하는지" 모르는 상태</td></tr>
+        <tr><td>구매까지 걸리는 시간</td><td>기준 생기면 빠름</td><td>1년+ 신중 탐색 후 구매</td><td>직관 오면 즉시</td><td style="background:#FFFBEB;">구매 실행 안 됨<br><span style="font-size:11px;color:#888;">(기준이 없어서)</span></td></tr>
+        <tr><td>막히는 지점</td><td>오하우스: 치수·배치 확신 부족<br>(카마세)</td><td>해외 배송·A/S 신뢰</td><td>거의 안 막힘</td><td style="background:#FFFBEB;">취향 언어 자체가 없음<br><span style="font-size:11px;color:#888;">이사·예산은 핑계, 근본은 "내가 뭘 원하는지 모른다"</span></td></tr>
+        <tr><td>오늘의집 사용 방식</td><td>취향 언어를 얻는 곳</td><td>동경 레퍼런스의 현실 대안을 찾는 곳</td><td>이미 찾은 취향을 확인·구매하는 곳</td><td style="background:#FFFBEB;font-weight:600;color:var(--target);">취향을 발견하게 해주는 곳이 되어야 함</td></tr>
+        <tr><td>해당 인터뷰이</td>
+          <td>上田智江 · 釜瀬直登<br><span style="font-size:11px;color:#888;">(우에다 토모에·카마세 나오토)</span></td>
+          <td>井上亜沙美<br><span style="font-size:11px;color:#888;">(이노우에 아사미)</span></td>
+          <td>加藤祐也<br><span style="font-size:11px;color:#888;">(카토 유야)</span></td>
+          <td style="background:#FFFBEB;"><strong>宗重早紀</strong><br><span style="font-size:11px;color:#888;">(무네시게 사키)</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <hr>
+
+  <!-- SECTION: 전략적 타겟 -->
+  <h2 id="strategy">6. 전략적 타겟 설정</h2>
+
+  <div class="flow">
+    <div style="font-size:16px;font-weight:800;margin-bottom:24px;">무네시게 사키 → 우에다·카마세·이노우에·카토</div>
+
+    <div class="flow-row">
+      <div class="flow-box target">
+        <div class="box-label">지금 타겟</div>
+        <div class="box-name">宗重早紀<br><span style="font-size:11px;font-weight:400;">(무네시게 사키)</span></div>
+        <div class="box-desc">유행을 따라가지만<br>자기 취향이 뭔지 모름<br>→ 재현 실패 반복</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box role">
+        <div class="box-label">오하우스의 역할</div>
+        <div class="box-name" style="font-size:13px;">취향 기준 만들기</div>
+        <div class="box-desc" style="text-align:left;">① "이게 내 취향이다" 발견할 레퍼런스 제시<br>② "이게 내 거다" 순간 만들기<br>③ 소품으로 작은 성공 → 취향 언어 획득<br>④ "내가 뭘 좋아하는지" 알게 됨</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box goal">
+        <div class="box-label">목표 상태</div>
+        <div class="box-name" style="font-size:13px;">나머지 4명</div>
+        <div class="box-desc">욕구 있음<br>기준 있음<br>탐색·구매 진행</div>
+      </div>
+    </div>
+
+    <h4 style="margin-top:24px;">목표 상태 4명 — 각자의 도달 경로</h4>
+    <div class="goal-table">
+      <div class="gt-row gt-head">
+        <div class="gt-cell">인물</div>
+        <div class="gt-cell">취향 기준 형성 방식</div>
+        <div class="gt-cell">오하우스 활용 방식</div>
+      </div>
+      <div class="gt-row">
+        <div class="gt-cell"><span class="persona-dot" style="background:var(--p1);"></span><strong>上田智江</strong><br><span style="font-size:10px;color:#888;">우에다 토모에</span></div>
+        <div class="gt-cell">콘텐츠로 컬러 팔레트 언어 획득 → 소품부터 성공 경험</div>
+        <div class="gt-cell">취향 언어 얻는 곳 + 집들이 기사 따라하기</div>
+      </div>
+      <div class="gt-row">
+        <div class="gt-cell"><span class="persona-dot" style="background:var(--p2);"></span><strong>釜瀬直登</strong><br><span style="font-size:10px;color:#888;">카마세 나오토</span></div>
+        <div class="gt-cell">방향성(거실=북유럽, 침실=한국식) 먼저 정하고 탐색 시작</div>
+        <div class="gt-cell">탐색·시뮬레이션을 즐기는 곳</div>
+      </div>
+      <div class="gt-row">
+        <div class="gt-cell"><span class="persona-dot" style="background:#0E7490;"></span><strong>井上亜沙美</strong><br><span style="font-size:10px;color:#888;">이노우에 아사미</span></div>
+        <div class="gt-cell">USM 할러 동경 브랜드에서 팔레트 기준 확립</div>
+        <div class="gt-cell">동경 레퍼런스의 현실 대안을 찾는 곳</div>
+      </div>
+      <div class="gt-row">
+        <div class="gt-cell"><span class="persona-dot" style="background:var(--p3);"></span><strong>加藤祐也</strong><br><span style="font-size:10px;color:#888;">카토 유야</span></div>
+        <div class="gt-cell">클럽 경험에서 직관으로 취향 확정</div>
+        <div class="gt-cell">이미 찾은 취향을 확인하고 즉시 구매하는 곳</div>
+      </div>
+    </div>
+
+    <h4 style="margin-top:24px;">지금 vs. 목표 상태 비교</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>宗重早紀 (무네시게 사키, 지금 타겟)</th><th>목표 상태 4명</th></tr></thead>
+        <tbody>
+          <tr><td>취향 기준</td><td>없음 — 유행만 따라가다 자기 취향이 뭔지 모름</td><td>있음 — 각자의 방식으로 취향 언어 확고</td></tr>
+          <tr><td>재현 경험</td><td>유행 따라했는데 내 방과 어색함 → 실패 반복 → 자신감 저하</td><td>성공 경험 기반 → 탐색·구매 즐김</td></tr>
+          <tr><td>실행 상태</td><td>탐색만, 구매 안 됨</td><td>탐색 + 구매 진행 중 또는 완료</td></tr>
+          <tr><td>오하우스 역할</td><td style="font-weight:600;color:var(--target);">취향을 발견하게 해주는 곳이 되어야 함</td><td>자기 기준으로 탐색·구매하는 곳</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- SECTION: 라이프스타일 -->
+  <h2 id="lifestyle">7. 라이프스타일 × 인테리어 취향 × 제품 수요</h2>
+
+  <div class="ls-card">
+    <div class="ls-name">
+      <div class="avatar" style="background:var(--p1);margin-bottom:8px;">P1</div>
+      <strong>上田智江</strong>
+      <span>우에다 토모에</span>
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">취미/라이프스타일</div>
+      독서 (연 100권, 동화책 다수)<br>미술대학 전공
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">연결 고리</div>
+      색을 다루는 훈련 → 공간도 팔레트로 설계
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">제품 수요</div>
+      책이 계속 쌓임 → <strong>책장이 핵심 가구</strong><br>이사 후 검정 책장 첫 구매 예정. 원하는 제품 품절 → 입점 신청까지 완료
+    </div>
+  </div>
+
+  <div class="ls-card">
+    <div class="ls-name">
+      <div class="avatar" style="background:var(--target);margin-bottom:8px;">P2</div>
+      <strong>宗重早紀</strong>
+      <span>무네시게 사키</span>
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">취미/라이프스타일</div>
+      주얼리 제작 (직업화 목표)
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">연결 고리</div>
+      손으로 만드는 공예 감각 → 유기적 형태, 따뜻한 소재 선호
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">제품 수요</div>
+      작업 공간(책상)이 거주 중심 → <strong>책상 교체가 최우선 과제</strong>
+    </div>
+  </div>
+
+  <div class="ls-card">
+    <div class="ls-name">
+      <div class="avatar" style="background:var(--p2);margin-bottom:8px;">P3</div>
+      <strong>釜瀬直登</strong>
+      <span>카마세 나오토</span>
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">취미/라이프스타일</div>
+      독서, 차 마시기<br>베란다에서 시간 보내기
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">연결 고리</div>
+      조용하고 정돈된 일상 → 어수선함 없는 공간
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">제품 수요</div>
+      베란다라는 새 공간 생김 → <strong>가든 체어·테이블 수요 발생</strong>
+    </div>
+  </div>
+
+  <div class="ls-card">
+    <div class="ls-name">
+      <div class="avatar" style="background:#0E7490;margin-bottom:8px;">P4</div>
+      <strong>井上亜沙美</strong>
+      <span>이노우에 아사미</span>
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">취미/라이프스타일</div>
+      재택근무<br>Netflix·YouTube
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">연결 고리</div>
+      집=일+휴식 공간 → 기능적으로도 정돈이 필요
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">제품 수요</div>
+      거실 테이블에서 업무 → <strong>수납·정리 가구 수요 높음</strong>
+    </div>
+  </div>
+
+  <div class="ls-card">
+    <div class="ls-name">
+      <div class="avatar" style="background:var(--p3);margin-bottom:8px;">P5</div>
+      <strong>加藤祐也</strong>
+      <span>카토 유야</span>
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">취미/라이프스타일</div>
+      DJ, 클럽
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">연결 고리</div>
+      클럽 공간의 어둡고 기능적인 미감 → 그대로 방으로
+    </div>
+    <div class="ls-col">
+      <div class="ls-col-title">제품 수요</div>
+      취향 확신이 강해 <strong>포인트 아이템 즉시 구매</strong>
+    </div>
+  </div>
+
+  <div style="font-size:11px;color:#aaa;text-align:center;margin-top:48px;">
+    작성일: 2026-04-13 &nbsp;|&nbsp; 인터뷰 대상: 내부 고객 5명 (Group 2 × 3명, Group 4 × 2명) &nbsp;|&nbsp; Helena Kim
+  </div>
+
+</main>
+
+<button class="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+// 페르소나 레이더 차트
+const ctx2 = document.getElementById('radarChart').getContext('2d');
+new Chart(ctx2, {
+  type: 'radar',
+  data: {
+    labels: ['구매 속도', '취향 확신도', '탐색 깊이', '재현 자신감', '기준 명확도'],
+    datasets: [
+      {
+        label: '페르소나 1 — 上田·釜瀬 (우에다·카마세)',
+        data: [4, 4, 4, 4, 4],
+        backgroundColor: 'rgba(124, 58, 237, 0.15)',
+        borderColor: 'rgba(124, 58, 237, 0.8)',
+        borderWidth: 2,
+        pointBackgroundColor: 'rgba(124, 58, 237, 0.8)',
+        pointRadius: 4,
+      },
+      {
+        label: '페르소나 2 — 井上 (이노우에)',
+        data: [2, 4, 5, 2, 3],
+        backgroundColor: 'rgba(14, 116, 144, 0.15)',
+        borderColor: 'rgba(14, 116, 144, 0.8)',
+        borderWidth: 2,
+        pointBackgroundColor: 'rgba(14, 116, 144, 0.8)',
+        pointRadius: 4,
+      },
+      {
+        label: '페르소나 3 — 加藤 (카토)',
+        data: [5, 5, 2, 5, 5],
+        backgroundColor: 'rgba(5, 150, 105, 0.15)',
+        borderColor: 'rgba(5, 150, 105, 0.8)',
+        borderWidth: 2,
+        pointBackgroundColor: 'rgba(5, 150, 105, 0.8)',
+        pointRadius: 4,
+      },
+      {
+        label: '전략적 타겟 — 宗重 (무네시게)',
+        data: [1, 2, 2, 1, 1],
+        backgroundColor: 'rgba(220, 38, 38, 0.08)',
+        borderColor: 'rgba(220, 38, 38, 0.7)',
+        borderWidth: 2,
+        borderDash: [5, 5],
+        pointBackgroundColor: 'rgba(220, 38, 38, 0.7)',
+        pointRadius: 4,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } }
+    },
+    scales: {
+      r: {
+        min: 0,
+        max: 5,
+        ticks: { stepSize: 1, font: { size: 10 }, backdropColor: 'transparent' },
+        grid: { color: 'rgba(0,0,0,0.08)' },
+        pointLabels: { font: { size: 12, weight: '600' } }
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>
