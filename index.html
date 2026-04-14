@@ -4,7 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JP Practical Solver 내부 인터뷰 종합 분석</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js">
+// Tab switching
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  event.target.classList.add('active');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function switchParticipant(pId) {
+  document.querySelectorAll('.raw-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.participant-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('raw-' + pId).classList.add('active');
+  event.target.closest('.participant-btn').classList.add('active');
+}
+</script>
 <style>
   :root {
     --bg: #F8F8F6;
@@ -253,6 +269,47 @@
   /* SCROLL TO TOP */
   .scroll-top { position: fixed; bottom: 24px; right: 24px; background: #1A1A1A; color: #fff; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; }
   .scroll-top:hover { opacity: 1; }
+
+  /* TAB SYSTEM */
+  .tab-bar {
+    display: flex; gap: 0; margin: 32px 0 0;
+    border-bottom: 2px solid var(--border);
+  }
+  .tab-btn {
+    padding: 12px 24px; font-size: 14px; font-weight: 700;
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); border-bottom: 3px solid transparent;
+    margin-bottom: -2px; transition: all 0.15s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* RAW DATA TAB */
+  .participant-nav {
+    display: flex; gap: 8px; margin: 24px 0; flex-wrap: wrap;
+  }
+  .participant-btn {
+    padding: 8px 16px; font-size: 12px; font-weight: 700;
+    border: 2px solid var(--border); border-radius: 8px;
+    background: var(--card); cursor: pointer; transition: all 0.15s;
+    color: var(--text-muted);
+  }
+  .participant-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .participant-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .raw-panel { display: none; }
+  .raw-panel.active { display: block; }
+  .topic-tag {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 4px; margin-bottom: 8px;
+  }
+  .topic-tag.lifestyle { background: #EDE9FE; color: #7C3AED; }
+  .topic-tag.sns { background: #FCE7F3; color: #BE185D; }
+  .topic-tag.ohouse { background: #DBEAFE; color: #1D4ED8; }
+  .topic-tag.taste { background: #D1FAE5; color: #059669; }
+  .topic-tag.barrier { background: #FEE2E2; color: #991B1B; }
 </style>
 </head>
 <body>
@@ -309,6 +366,13 @@
       </div>
     </div>
   </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('report')">내부 인터뷰 종합 분석</button>
+    <button class="tab-btn" onclick="switchTab('rawdata')">고객 로우 데이터</button>
+  </div>
+
+  <div id="tab-report" class="tab-panel active">
 
   <!-- SECTION 1: 종합 서머리 -->
   <h2 id="participants">1. 참여자별 인사이트</h2>
@@ -715,209 +779,6 @@
     </div>
   </div>
 
-
-  <h3 style="margin-top:40px;">가설 뒷받침: 라이프스타일이 취향을 찾는데 도움을 준다</h3>
-
-  <!-- 上田 -->
-  <div class="card" style="border-left:4px solid var(--p1); margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div class="avatar" style="background:var(--p1);">P1</div>
-      <div style="font-size:14px;font-weight:700;">上田智江 (우에다 토모에)</div>
-    </div>
-
-    <h4 style="margin:16px 0 8px;">서점·TSUTAYA 근무 경험 → 공간 감각 형성</h4>
-    <blockquote>"서점에서 잡지 담당을 맡았는데, 인테리어 잡지가 정말 많아서 자주 접하게 됐어요. 거기서 가구로 공간이 정말 많이 달라진다는 생각을 하게 됐어요."</blockquote>
-    <blockquote>"TSUTAYA 서점에서도 일했는데, 거기는 인테리어가 정말 멋지잖아요. 그런 곳에서 공간을 만드는 작업을 하다 보니 집에도 적용하게 된 것 같아요."</blockquote>
-
-    <h4>미술대학 그림책 전공 + 독서 취미(연 100권) → 북쉘프가 인테리어 핵심 아이템</h4>
-    <blockquote>"미술대학에서 그림책을 전공해서 지금 그림책이 넘쳐나고 있어요. 그림책만의 책장이 필요해서, 그게 지금 제일 갖고 싶은 가구예요."</blockquote>
-
-    <h4>코스메·패션 취미 → "모방→자기화" 방법론이 인테리어에 전이</h4>
-    <blockquote>"코스메도 옷도, 어떤 것이든 처음엔 따라하는 데서 시작해서 점점 오리지널하게 만들어가는 게 제 방식이에요. 인테리어도 마찬가지로, 동경하는 사람을 따라해보고 거기서 자기 것을 찾아가는 거죠."</blockquote>
-
-    <h4>대인관계/선물 문화 → 팔레트 형성</h4>
-    <blockquote>"친구들한테 받는 게 항상 노란색이라 언제부턴가 좋아하는 색이 됐어요. 그래서 인테리어에도 원포인트로 넣고 싶다는 생각이 들었고, 이 3색(흰색·검정·레몬옐로우)이 제 인테리어의 기본 색이 됐어요."</blockquote>
-  </div>
-
-  <!-- 井上 -->
-  <div class="card" style="border-left:4px solid #0E7490; margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div class="avatar" style="background:#0E7490;">P4</div>
-      <div style="font-size:14px;font-weight:700;">井上亜沙美 (이노우에 아사미)</div>
-    </div>
-
-    <h4 style="margin:16px 0 8px;">재택근무 전환 → 집 꾸미기의 결정적 트리거</h4>
-    <blockquote>"집을 꾸미고 싶다고 생각하게 된 계기는 완전히 재택근무를 하게 된 것이었습니다. 하루 종일 집에 있게 되니까, 집 안을 제 취향대로 꾸미고 편안한 환경을 만들고 싶다고 생각한 것이 가장 큰 계기입니다."</blockquote>
-
-    <h4>이사 후 충동구매 실패 → 취향 자각</h4>
-    <blockquote>"원래는 제 취향을 잘 몰라서 이사할 때 충동적으로 데님 소파를 사버렸어요. 거기서부터 인터넷을 보다가 북유럽 잡화 아이템들이 귀엽다고 모으기 시작했는데, 데님 소파랑 안 어울리더라고요. 북유럽 아이템을 들여놓다 보니 '내 취향은 이쪽인가 보다' 하고 알게 됐어요."</blockquote>
-
-    <h4>협소 도쿄 주거 환경 → 미니멀 취향 내면화</h4>
-    <blockquote>"도쿄 집은 좁아서 가구의 압박감을 피하고 싶기 때문에, 세로·가로·깊이 전부 재고 나서 놓았을 때의 이미지를 그려본 후에 사는 편입니다."</blockquote>
-    <blockquote>"복잡한 것을 좋아하지 않아서, 소품은 좀 비싸더라도 정말 마음에 드는 좋은 물건을 사서 오래 쓰고 싶어요. 유행하는 물건을 많이 모으는 것보다 오래 쓸 수 있는 물건을 사고 싶습니다."</blockquote>
-
-    <h4>블로거 팔로우 → 북유럽 브랜드 입문 → 현재 취향의 원형</h4>
-    <blockquote>"결혼해서 인테리어를 찾던 시절에는 인스타그램이 지금처럼 유행하지 않아서 블로그를 많이 참고했어요. 당시 엄청난 인기를 누리던 히요와온 씨라는 블로거가 있었는데, 그분은 북유럽 스타일의 소품이나 인테리어를 많이 모으는 분이어서 정말 참고가 많이 됐어요."</blockquote>
-    <blockquote>"그 영향으로 Iittala나 Arabia, 그리고 Lisa Larson의 오브제 같은 부분에 흥미를 갖게 된 것이 인테리어를 좋아하게 된 계기라고 생각합니다."</blockquote>
-  </div>
-
-  <!-- 加藤 -->
-  <div class="card" style="border-left:4px solid var(--p3); margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div class="avatar" style="background:var(--p3);">P5</div>
-      <div style="font-size:14px;font-weight:700;">加藤祐也 (카토 유야)</div>
-    </div>
-
-    <h4 style="margin:16px 0 8px;">DJ 취미 + 클럽 경험 → 무기질 인테리어 취향의 직접적 계기</h4>
-    <blockquote>"취미로 디제잉을 하고 있는데, 제가 가는 클럽은 진짜 음악을 즐기기 위한 곳이라 좀 무기질한 느낌이거든요. 거기서 영감을 받은 게 아닐까 싶습니다."</blockquote>
-    <blockquote>"도쿄에 있는 서커스라는 클럽에 갔을 때 머릿속에 쾅 하고 천둥번개가 치는 느낌을 받았어요. 거기서 감명을 받았다고 말씀드린 것 같아요."</blockquote>
-
-    <h4>독서 습관 → 인테리어 아이템 탐색으로 직결</h4>
-    <blockquote>"예전에 읽었던 소설을 갑자기 다시 읽고 싶은 순간이 오는데, 그래서 독서용 소파를 하나 사면 좋겠다고 찾아보고 있었어요."</blockquote>
-
-    <h4>본인이 가설을 직접 언어화</h4>
-    <blockquote style="background:#EFF6FF;border-left:3px solid var(--goal);font-weight:600;color:var(--text);"><strong>"그때그때 라이프스타일에 맞추어서 인테리어를 바꾸고 싶어지는 것 같습니다."</strong></blockquote>
-  </div>
-
-
-  <h3 style="margin-top:40px;">인스타그램 활용 방식: 취향 탐색 채널로서의 SNS</h3>
-
-  <!-- 上田 인스타 -->
-  <div class="card" style="border-left:4px solid var(--p1); margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div class="avatar" style="background:var(--p1);">P1</div>
-      <div style="font-size:14px;font-weight:700;">上田智江 (우에다 토모에) — 한국어 검색으로 취향 콘텐츠 접근</div>
-    </div>
-
-    <h4 style="margin:16px 0 8px;">검색 전략: LINE 번역으로 한국어 키워드 변환</h4>
-    <blockquote>"한국어로 '리빙(거실)'이라고 인스타그램에서 검색해서, 이런 리빙이 좋겠다 하는 걸 찾고, 거기서 오하우스로 이동해서 리뷰나 기사를 보는 식이에요."</blockquote>
-    <blockquote>"한국어를 직접 못 쓰니까 LINE 번역 기능으로 복사-붙여넣기해서 검색해요. '리빙', '룸투어' 같은 키워드로요."</blockquote>
-
-    <h4>왜 일본어가 아닌 한국어로 검색하는가</h4>
-    <blockquote>"일본어로 검색하면 북유럽계나 일본적인 것, 나무결 위주만 나와요. 한국어로 검색하면 블랙·화이트·실버, 무기질한 것들이 많이 나오거든요. 한국 쪽이 제가 좋아하는 게 더 많이 나와요."</blockquote>
-
-    <h4>인스타에서 블랙 인테리어를 보고 고정관념이 깨진 순간</h4>
-    <blockquote>"한국 인테리어에 검정이 들어간 게 정말 많았어요. 예전엔 검정을 방에 넣으면 호스트바 같다는 이미지였는데, 한국 사람들은 정말 품위 있게 넣더라고요. 검정 그림책 책장도 있어서 깜짝 놀랐어요. 일본에는 없는 발상이거든요."</blockquote>
-
-    <h4>탐색 기준: 단품보다 방 전체 이미지</h4>
-    <blockquote>"물건이 강조된 것보다 방 전체가 보이는 콘텐츠를 봐요. 가구에 어떤 그림이 어울리는지, 색 밸런스가 어떤지 — 전체 분위기를 파악하고 싶어서요."</blockquote>
-  </div>
-
-  <!-- 井上 인스타 -->
-  <div class="card" style="border-left:4px solid #0E7490; margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div class="avatar" style="background:#0E7490;">P4</div>
-      <div style="font-size:14px;font-weight:700;">井上亜沙美 (이노우에 아사미) — 아이템 해시태그 검색 → 일반인 계정 탐색</div>
-    </div>
-
-    <h4 style="margin:16px 0 8px;">검색 방식: 브랜드명·아이템명 해시태그</h4>
-    <blockquote>"인스타그램을 많이 활용해요. 좋아하는 브랜드나 갖고 싶은 아이템의 해시태그로 검색해서, 그걸 가지고 있는 사람들의 계정을 참고하는 식이에요."</blockquote>
-    <blockquote>"모듈 랙을 샀기 때문에 '모듈 랙'으로 검색해서 어떤 소품들이 맞을까 하는 느낌으로 찾아봐요."</blockquote>
-
-    <h4>유명 인플루언서보다 일반인 계정 선호</h4>
-    <blockquote>"정말 유명한 분이라기보다 평범한 분일지도 몰라요. 이런 이미지를 보고 참고하면서, 러그 패턴을 바꿔보거나 단색이었던 것을 무늬가 있는 것으로 바꿔보는 식으로 적용하곤 해요."</blockquote>
-    <blockquote>"물건을 많이 두는 것을 안 좋아해서, 깔끔하면서도 디자이너 아이템을 활용하는 사람들의 인스타를 보면 '우리 집에도 어울릴지도'라고 생각하게 돼요."</blockquote>
-
-    <h4>초기 블로그 → 현재 인스타로 전환</h4>
-    <blockquote>"결혼해서 인테리어를 찾던 시절에는 블로그를 많이 참고했어요. 히요와온 씨라는 블로거가 북유럽 스타일 소품을 많이 모으시는 분이라 Iittala, Arabia, Lisa Larson에 흥미를 갖게 된 계기가 됐어요."</blockquote>
-  </div>
-
-  <!-- 加藤 인스타 -->
-  <div class="card" style="border-left:4px solid var(--p3); margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div class="avatar" style="background:var(--p3);">P5</div>
-      <div style="font-size:14px;font-weight:700;">加藤祐也 (카토 유야) — 핵심 인플루언서 기반 탐색</div>
-    </div>
-
-    <h4 style="margin:16px 0 8px;">핵심 팔로우 계정: 요시님(요시라이프)</h4>
-    <blockquote>"요시님이라는 분의 방이 진짜 딱 제 취향이에요. 제가 원하는 인테리어에 가장 가까운 분이라서, 이분이 올리는 사진들은 자주 보는 것 같아요."</blockquote>
-    <blockquote>"요시님 콘텐츠를 보고 이분이 쓰는 제품이라면 잘 어울리겠는데, 사볼까? 하는 생각을 하게 되죠."</blockquote>
-    <blockquote>"이분한테 영향을 받아서 시계를 구매했어요. 쓰레기통도 비슷한 질감의 제품을 사야겠다고 생각하게 했죠."</blockquote>
-
-    <h4>두 번째 참고 계정: IIN</h4>
-    <blockquote>"이분의 집이 완전히 제 취향은 아니지만 일부 참고할 만한 부분이 있어요. 선반 같은 게 참고가 될 만하다고 생각했습니다."</blockquote>
-
-    <h4>인스타 → 오하우스 크로스오버 탐색</h4>
-    <blockquote>"인스타그램에서 보고 마음에 드는 상품이 있으면 오하우스에서 '실버 쓰레기통' 이런 식으로 검색해봐요."</blockquote>
-
-    <h4>취향 형성에서 인스타의 위치</h4>
-    <blockquote>"잡지를 메인으로 취향을 만들어갔는데, 지금 취향이 완성된 건 인스타그램 같은 사진 기반 SNS에서 인테리어 정보를 쉽게 얻을 수 있게 되면서인 것 같아요."</blockquote>
-    <blockquote>"내가 그 스타일을 좋아한 게 먼저인지, 이분을 인스타에서 만나면서 좋아하게 된 건지 순서는 모르겠어요. 비슷하다는 느낌을 받으니까 점점 참고하게 되는 것 같아요."</blockquote>
-  </div>
-
-
-  <h3 style="margin-top:40px;">오하우스 콘텐츠 활용 방식</h3>
-
-  <!-- 上田 오하우스 -->
-  <div class="card" style="border-left:4px solid var(--p1); margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div class="avatar" style="background:var(--p1);">P1</div>
-      <div style="font-size:14px;font-weight:700;">上田智江 (우에다 토모에) — "보는 전용"에서 구매 채널로 전환</div>
-    </div>
-
-    <h4 style="margin:16px 0 8px;">유입 경로: 인스타 → 오하우스 기사 → 상품</h4>
-    <blockquote>"한국어로 '거실'이라고 인스타에서 검색해서, 이런 거실이 좋겠다 하면 거기서 오하우스로 이동해요. 갖고 싶은 상품의 리뷰에서 그 사람의 방으로 넘어갈 수 있고 기사도 볼 수 있어서, 이 두 가지로 구성된 경우가 많아요."</blockquote>
-
-    <h4>집들이 기사 = "마네킹 코디"</h4>
-    <blockquote>"인테리어를 잘 모르는 사람이라도 이 방 기사를 보고, 마네킹은 아니지만 옷처럼 '이것만 사면 이 방이 완성된다, 바로 할 수 있다'는 점이 굉장히 좋은 것 같아요."</blockquote>
-
-    <h4>상품 발견은 기사에서</h4>
-    <blockquote>"이 상품은 인테리어를 포스팅한 기사에서 찾았어요."<br><span style="font-size:11px;color:#888;">카테고리 검색이나 쇼핑 탭이 아닌 콘텐츠에서 발견</span></blockquote>
-
-    <h4>과거 "보는 전용" → 현재 구매 채널</h4>
-    <blockquote>"예전에는 아직 오하우스에서 통신판매를 안 하던 때라 '보는 전용'으로 사용했어요. 최근 1~2년 사이에 상품 수가 많이 늘어서, 앞으로는 오하우스가 리뷰도 가장 많고 신뢰도도 높아서 이용하고 싶어요."</blockquote>
-
-    <h4>구매 결정 기준: 별점 &gt; 리뷰 수</h4>
-    <blockquote>"별점이 4.8이라서 굉장히 높으니까, 리뷰 수가 적어도 이만큼 평가가 높은 거구나 하고 믿는 부분이 있어서 구매했어요."</blockquote>
-
-    <h4>오하우스 독점 상품 인식</h4>
-    <blockquote>"이 책장은 다른 사이트에서도 찾아봤는데 없어서, 오하우스에서만 취급하는 것 같더라고요."</blockquote>
-  </div>
-
-  <!-- 井上 오하우스 -->
-  <div class="card" style="border-left:4px solid #0E7490; margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div class="avatar" style="background:#0E7490;">P4</div>
-      <div style="font-size:14px;font-weight:700;">井上亜沙美 (이노우에 아사미) — 마켓비 검색 중 유입, 배송·AS 장벽으로 미구매</div>
-    </div>
-
-    <h4 style="margin:16px 0 8px;">유입 경로: 마켓비 Google 검색 → 오하우스 발견</h4>
-    <blockquote>"마켓비를 파는 곳이 별로 없어서 잘 모르는 사이트는 무서웠는데, 오하우스라는 인테리어 쇼핑몰에 도착하게 됐어요. '이런 곳도 있구나' 하면서 처음 알게 됐어요."</blockquote>
-
-    <h4>미구매 이유 1: 배송 기간</h4>
-    <blockquote>"1주일~2주일 정도 걸린다고 쓰여 있어서, 시간이 좀 걸리면 브랜치 포인트에서도 괜찮을까 하고 저울질하다가 브랜치 포인트로 결정한 느낌이에요."</blockquote>
-
-    <h4>미구매 이유 2: 해외 AS 불안</h4>
-    <blockquote>"불안은 좀 있을지도 몰라요. 뭔가 불리한 일이 생겼을 때의 지원은 어떻게 되는 건지 — 가구라면 신경 쓰이네요."</blockquote>
-
-    <h4>미구매 이유 3: 원하는 사이즈 일본 배송 불가</h4>
-    <blockquote>"이 제품보다 한 사이즈 작은 게 한국 내에서만 팔고 있는 것 같은데, 일본으로는 배송을 안 하는 것 같아서 포기했어요."</blockquote>
-  </div>
-
-  <!-- 加藤 오하우스 -->
-  <div class="card" style="border-left:4px solid var(--p3); margin-bottom:16px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div class="avatar" style="background:var(--p3);">P5</div>
-      <div style="font-size:14px;font-weight:700;">加藤祐也 (카토 유야) — 룸투어 기사 중심, 인테리어 디폴트 채널</div>
-    </div>
-
-    <h4 style="margin:16px 0 8px;">룸투어 기사 = 정기적 탐색 + 구매 전환</h4>
-    <blockquote>"자주 보는 건 룸투어 기사예요. 새로운 제품이 있는지, 내 취향에 맞는 게 없는지 체크하는 용도로 정말 자주 봐요."</blockquote>
-    <blockquote>"상품에 플러스 마크로 태그가 달려 있잖아요. 눌러서 확인하고, 마음에 드는 상품이 있으면 바로 보는 거죠."</blockquote>
-    <blockquote>"이 러그는 어떤 기사를 보고 구매한 것 같아요. 유기적인 디자인에 가까운, 원하는 분위기를 내는 제품이라 구매했어요."</blockquote>
-
-    <h4>인테리어 디폴트 채널</h4>
-    <blockquote style="background:#EFF6FF;border-left:3px solid var(--goal);font-weight:600;color:var(--text);"><strong>"인테리어라 하면 일단 오하우스를 먼저 보고, 지금은 당연하게 쓰고 있는 것 같아요."</strong></blockquote>
-
-    <h4>재구매 이유: 사진=실물 + 배송 신뢰</h4>
-    <blockquote>"사진과 차이를 별로 느끼지 않게 해주는 게 좋았어요. 도착한 물건들도 다 좋았고 파손도 없었고, 그런 부분이 마음에 들어서 계속 이용하고 있어요."</blockquote>
-    <blockquote>"유저가 사용하는 사진을 통해 실질감이나 '내가 생각했던 거랑 같다'는 생각을 하게 해줘요. 룸투어 기사도 도움이 됐고요."</blockquote>
-
-    <h4>해외 배송 장벽 없음</h4>
-    <blockquote>"한국 사이트라서 불안하다 이런 건 별로 없었어요. 가까우니까 더 안정적으로 도착하지 않을까 하는 기대가 있고, 미국에서도 샀었으니까. 한국이라서 오히려 안심했어요."</blockquote>
-  </div>
-
-  <div style="font-size:11px;color:#aaa;text-align:center;margin-top:48px;">
     작성일: 2026-04-13 &nbsp;|&nbsp; 인터뷰 대상: 내부 고객 5명 (Group 2 × 3명, Group 4 × 2명) &nbsp;|&nbsp; Helena Kim
   </div>
 
@@ -989,6 +850,22 @@ new Chart(ctx2, {
     }
   }
 });
+
+// Tab switching
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  event.target.classList.add('active');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function switchParticipant(pId) {
+  document.querySelectorAll('.raw-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.participant-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('raw-' + pId).classList.add('active');
+  event.target.closest('.participant-btn').classList.add('active');
+}
 </script>
 </body>
 </html>
